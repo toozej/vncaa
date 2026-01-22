@@ -149,6 +149,25 @@ Unit tests cover:
 
 Run with: `cargo test`
 
+## Development
+
+**IMPORTANT: Before committing ANY Rust code changes, you MUST run all three checks:**
+
+```bash
+# Run all checks before committing
+cargo test
+cargo fmt --check
+cargo clippy --all-targets --all-features
+
+# Fix formatting automatically
+cargo fmt
+
+# Fix clippy warnings (review suggestions first)
+cargo clippy --fix --allow-dirty
+```
+
+These checks are enforced by CI and will fail the build if not passing. Always run them locally before pushing to save CI time and ensure code quality.
+
 ## Use Cases
 
 1. **Remote Development**: Access Claude Code from any device with a browser

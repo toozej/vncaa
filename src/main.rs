@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::io::{Read as _, Write as _};
+use std::mem;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
@@ -194,21 +195,21 @@ async fn send_text_to_display(display: u32, text: &str) {
             .args(["search", "--class", "Alacritty"])
             .output();
 
-        if let Ok(out) = &output {
-            if !out.stdout.is_empty() {
-                // Window found, now focus it
-                let focus_result = Command::new("xdotool")
-                    .env("DISPLAY", &display_env)
-                    .args(["search", "--class", "Alacritty", "windowfocus", "--sync"])
-                    .status();
-                println!(
-                    "xdotool focus result (attempt {}): {:?}",
-                    attempt, focus_result
-                );
-                focus_ok = focus_result.map(|s| s.success()).unwrap_or(false);
-                if focus_ok {
-                    break;
-                }
+        if let Ok(out) = &output
+            && !out.stdout.is_empty()
+        {
+            // Window found, now focus it
+            let focus_result = Command::new("xdotool")
+                .env("DISPLAY", &display_env)
+                .args(["search", "--class", "Alacritty", "windowfocus", "--sync"])
+                .status();
+            println!(
+                "xdotool focus result (attempt {}): {:?}",
+                attempt, focus_result
+            );
+            focus_ok = focus_result.map(|s| s.success()).unwrap_or(false);
+            if focus_ok {
+                break;
             }
         }
 
@@ -260,7 +261,7 @@ async fn handle_prompt_socket(mut socket: WebSocket, state: Arc<AppState>) {
 }
 
 async fn font_size_handler(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Json(request): Json<FontSizeRequest>,
 ) -> Result<Json<FontSizeResponse>, (StatusCode, Json<FontSizeResponse>)> {
     println!("Font size change request: {}", request.size);
@@ -318,14 +319,14 @@ fn validate_args(args: &[String]) -> Result<(String, String, u16), String> {
 }
 
 fn validate_font_size(size: f32) -> Result<f32, String> {
-    if size < 8.0 || size > 72.0 {
+    if !size.is_finite() {
+        return Err("Font size must be a valid number".to_string());
+    }
+    if !(8.0..=72.0).contains(&size) {
         return Err(format!(
             "Font size must be between 8.0 and 72.0, got {}",
             size
         ));
-    }
-    if !size.is_finite() {
-        return Err("Font size must be a valid number".to_string());
     }
     Ok(size)
 }
@@ -346,10 +347,10 @@ fn update_alacritty_config(size: f32) -> Result<(), String> {
         .map_err(|e| format!("Failed to parse alacritty config: {}", e))?;
 
     // Update the font size
-    if let Some(font) = config.get_mut("font") {
-        if let Some(font_table) = font.as_table_mut() {
-            font_table.insert("size".to_string(), toml::Value::Float(size as f64));
-        }
+    if let Some(font) = config.get_mut("font")
+        && let Some(font_table) = font.as_table_mut()
+    {
+        font_table.insert("size".to_string(), toml::Value::Float(size as f64));
     }
 
     // Write back to file
@@ -403,7 +404,9 @@ async fn main() {
     thread::sleep(Duration::from_millis(300));
 
     println!("Starting ratpoison window manager");
-    let _wm_proc = start_window_manager(display);
+    let wm_proc = start_window_manager(display);
+    // Window manager runs for app lifetime, intentionally not waiting
+    mem::forget(wm_proc);
     thread::sleep(Duration::from_millis(200));
 
     let terminal = find_terminal();
@@ -528,7 +531,7 @@ mod tests {
     #[test]
     fn test_find_available_display_returns_valid_number() {
         let display = find_available_display();
-        assert!(display >= 1 && display < 100);
+        assert!((1..100).contains(&display));
     }
 
     #[test]
