@@ -2,6 +2,12 @@
 
 Run Claude Code in a VNC Linux environment for ease of use over tailscale/etc.
 
+
+
+https://github.com/user-attachments/assets/c95b450e-30d4-4c17-bc84-ed936f600d63
+
+
+
 ## Quick Start
 
 ```bash
