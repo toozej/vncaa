@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>vnccc</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            background: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: 1024px;
+            margin: 0 auto;
+        }
+
+        .vnc-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #vnc-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .prompt-container {
+            padding: 12px;
+            background: #2a2a2a;
+            border-top: 1px solid #444;
+        }
+
+        .prompt-form {
+            display: flex;
+            gap: 8px;
+        }
+
+        #prompt-input {
+            flex: 1;
+            padding: 16px;
+            font-size: 18px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            background: #1a1a1a;
+            color: #fff;
+            outline: none;
+        }
+
+        #prompt-input:focus {
+            border-color: #6366f1;
+        }
+
+        #prompt-input::placeholder {
+            color: #666;
+        }
+
+        #send-btn {
+            padding: 16px 24px;
+            font-size: 18px;
+            font-weight: 600;
+            background: #6366f1;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #send-btn:hover {
+            background: #5558e3;
+        }
+
+        #send-btn:active {
+            background: #4447c7;
+        }
+
+        #send-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        .status {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .status.connected {
+            color: #22c55e;
+        }
+
+        .status.disconnected {
+            color: #ef4444;
+        }
+
+        @media (max-width: 600px) {
+            #prompt-input {
+                font-size: 16px;
+                padding: 14px;
+            }
+
+            #send-btn {
+                padding: 14px 20px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="vnc-container">
+            <iframe
+                id="vnc-iframe"
+                allow="pointer-lock; fullscreen; clipboard-read; clipboard-write"
+                allowfullscreen
+            ></iframe>
+        </div>
+        <div class="prompt-container">
+            <form class="prompt-form" id="prompt-form">
+                <input
+                    type="text"
+                    id="prompt-input"
+                    placeholder="Type your prompt here..."
+                    autocomplete="off"
+                    autocapitalize="sentences"
+                >
+                <button type="submit" id="send-btn">Send</button>
+            </form>
+            <div class="status" id="status">Connecting...</div>
+        </div>
+    </div>
+
+    <script>
+        const promptInput = document.getElementById('prompt-input');
+        const promptForm = document.getElementById('prompt-form');
+        const sendBtn = document.getElementById('send-btn');
+        const statusEl = document.getElementById('status');
+
+        let ws = null;
+        let reconnectTimer = null;
+
+        function connect() {
+            const wsUrl = `ws://${window.location.host}/prompt`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'status connected';
+                sendBtn.disabled = false;
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = 'Disconnected - reconnecting...';
+                statusEl.className = 'status disconnected';
+                sendBtn.disabled = true;
+
+                // Reconnect after 2 seconds
+                reconnectTimer = setTimeout(connect, 2000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+            };
+        }
+
+        promptForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const text = promptInput.value.trim();
+            if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+            ws.send(text);
+            promptInput.value = '';
+            promptInput.focus();
+        });
+
+        // Set VNC iframe URL based on current host
+        const vncIframe = document.getElementById('vnc-iframe');
+        const vncHost = window.location.hostname || 'localhost';
+        vncIframe.src = `http://${vncHost}:6080/vnc.html?autoconnect=true&resize=scale&show_dot=true&view_clip=false`;
+
+        // Start connection
+        connect();
+
+        // Focus input on load
+        promptInput.focus();
+    </script>
+</body>
+</html>
