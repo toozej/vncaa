@@ -1,11 +1,12 @@
 use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    Router,
     extract::State,
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
     http::StatusCode,
     response::{Html, IntoResponse, Json},
     routing::{get, post},
-    Router,
 };
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -15,7 +16,6 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use futures::StreamExt;
 use tokio::signal;
 use tokio::sync::Mutex;
 
@@ -53,9 +53,12 @@ fn start_vnc_server(display: u32, geometry: &str) -> Child {
     let vnc = Command::new("Xvnc")
         .args([
             &format!(":{}", display),
-            "-geometry", geometry,
-            "-depth", "24",
-            "-SecurityTypes", "None",
+            "-geometry",
+            geometry,
+            "-depth",
+            "24",
+            "-SecurityTypes",
+            "None",
         ])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -68,8 +71,10 @@ fn start_vnc_server(display: u32, geometry: &str) -> Child {
             Command::new("vncserver")
                 .args([
                     &format!(":{}", display),
-                    "-geometry", geometry,
-                    "-depth", "24",
+                    "-geometry",
+                    geometry,
+                    "-depth",
+                    "24",
                 ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
@@ -106,7 +111,12 @@ fn find_terminal() -> &'static str {
     "alacritty"
 }
 
-fn start_terminal_with_claude(display: u32, repo_path: &str, terminal: &str, geometry: &str) -> Child {
+fn start_terminal_with_claude(
+    display: u32,
+    repo_path: &str,
+    terminal: &str,
+    geometry: &str,
+) -> Child {
     let display_env = format!(":{}", display);
     let claude_cmd = format!("cd {} && claude --dangerously-skip-permissions", repo_path);
 
@@ -125,7 +135,14 @@ fn start_terminal_with_claude(display: u32, repo_path: &str, terminal: &str, geo
 
     match terminal {
         "wezterm" => {
-            cmd.args(["start", "--always-new-process", "--", "bash", "-c", &claude_cmd]);
+            cmd.args([
+                "start",
+                "--always-new-process",
+                "--",
+                "bash",
+                "-c",
+                &claude_cmd,
+            ]);
         }
         "alacritty" => {
             cmd.args(["-e", "bash", "-c", &claude_cmd]);
@@ -136,11 +153,18 @@ fn start_terminal_with_claude(display: u32, repo_path: &str, terminal: &str, geo
         "xterm" => {
             cmd.args([
                 "-maximized",
-                "-fa", "Monospace",
-                "-fs", "14",
-                "-bg", "black",
-                "-fg", "white",
-                "-e", "bash", "-c", &claude_cmd
+                "-fa",
+                "Monospace",
+                "-fs",
+                "14",
+                "-bg",
+                "black",
+                "-fg",
+                "white",
+                "-e",
+                "bash",
+                "-c",
+                &claude_cmd,
             ]);
         }
         "urxvt" => {
@@ -177,7 +201,10 @@ async fn send_text_to_display(display: u32, text: &str) {
                     .env("DISPLAY", &display_env)
                     .args(["search", "--class", "Alacritty", "windowfocus", "--sync"])
                     .status();
-                println!("xdotool focus result (attempt {}): {:?}", attempt, focus_result);
+                println!(
+                    "xdotool focus result (attempt {}): {:?}",
+                    attempt, focus_result
+                );
                 focus_ok = focus_result.map(|s| s.success()).unwrap_or(false);
                 if focus_ok {
                     break;
@@ -276,10 +303,12 @@ fn validate_args(args: &[String]) -> Result<(String, String, u16), String> {
     }
 
     let repo_path = args[1].clone();
-    let geometry = args.get(2).map(|s| s.as_str()).unwrap_or("1024x1024").to_string();
-    let web_port: u16 = args.get(3)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(8080);
+    let geometry = args
+        .get(2)
+        .map(|s| s.as_str())
+        .unwrap_or("1024x1024")
+        .to_string();
+    let web_port: u16 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(8080);
 
     if !Path::new(&repo_path).exists() {
         return Err(format!("Error: repo path '{}' does not exist", repo_path));
@@ -290,7 +319,10 @@ fn validate_args(args: &[String]) -> Result<(String, String, u16), String> {
 
 fn validate_font_size(size: f32) -> Result<f32, String> {
     if size < 8.0 || size > 72.0 {
-        return Err(format!("Font size must be between 8.0 and 72.0, got {}", size));
+        return Err(format!(
+            "Font size must be between 8.0 and 72.0, got {}",
+            size
+        ));
     }
     if !size.is_finite() {
         return Err("Font size must be a valid number".to_string());
@@ -382,7 +414,8 @@ async fn main() {
     let geometry_clone = geometry.to_string();
     tokio::spawn(async move {
         loop {
-            let mut term_proc = start_terminal_with_claude(display, &repo_path_clone, terminal, &geometry_clone);
+            let mut term_proc =
+                start_terminal_with_claude(display, &repo_path_clone, terminal, &geometry_clone);
             println!("Terminal started (pid: {:?})", term_proc.id());
 
             // Wait for terminal to exit
