@@ -1,6 +1,6 @@
 # vnccc: vnc claude code
 
-Run Claude Code in a VNC Linux environment with web and Android clients.
+Run Claude Code in a VNC Linux environment for ease of use over tailscale/etc.
 
 ## Quick Start
 
