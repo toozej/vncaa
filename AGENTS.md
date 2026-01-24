@@ -1,16 +1,16 @@
-# vnccc - VNC Claude Code
+# vncaa - VNC Any [LLM] Agent [CLI]
 
-A browser-based interface for running Claude Code CLI in a containerized environment.
+A browser-based interface for running a LLM Agent CLI in a containerized environment.
 
 ## What It Does
 
-vnccc creates a complete development environment accessible through your web browser. It combines:
+vncaa creates a complete development environment accessible through your web browser. It combines:
 
 - **VNC Server** (TigerVNC): Provides a virtual display
 - **noVNC**: Browser-based VNC client for web access
 - **Alacritty Terminal**: Modern GPU-accelerated terminal emulator
 - **Ratpoison WM**: Lightweight tiling window manager
-- **Claude Code CLI**: Anthropic's command-line interface for Claude
+- **LLM Agent CLI**: Multi-agent support for various LLM Agent CLI tools including Claude Code, Gemini, Kilocode, OpenCode, Crush, and NanoCoder
 - **Rust Web Server** (Axum): Serves the UI and handles interactions
 
 ## Architecture
@@ -23,7 +23,7 @@ The main application orchestrates several processes:
 2. Starts Xvnc server with custom geometry (src/main.rs:52-80)
 3. Launches websockify to bridge VNC and WebSocket (src/main.rs:82-93)
 4. Starts ratpoison window manager (src/main.rs:95-103)
-5. Opens Alacritty terminal running Claude Code (src/main.rs:109-158)
+5. Opens Alacritty terminal running the selected LLM Agent CLI (src/main.rs:109-158)
 6. Serves web UI with embedded noVNC viewer (src/index.html)
 
 ### Web Interface
@@ -42,6 +42,19 @@ Uses `xdotool` to:
 3. Type text and press Enter
 4. Includes retry logic for terminal restarts
 
+### Agent Wrapper (agent-wrapper.sh)
+
+The `agent-wrapper.sh` script provides a unified interface for launching different LLM agents:
+
+- **Claude**: `claude --dangerously-skip-permissions`
+- **Gemini**: `gemini --yolo`
+- **Kilocode**: `kilocode --yolo`
+- **OpenCode**: `opencode --dangerously-skip-permissions`
+- **Crush**: `crush --yolo`
+- **NanoCoder**: `nanocoder`
+
+The wrapper automatically detects the selected agent via the `AGENT` environment variable and executes the appropriate command with the correct flags.
+
 ### Auto-Restart (src/main.rs:380-401)
 
 The terminal process runs in a monitor loop that automatically restarts it if it exits, ensuring the Claude Code session persists.
@@ -59,10 +72,10 @@ Dynamically updates the Alacritty TOML config file:
 
 The Dockerfile uses layer caching optimization:
 
-1. **Base layer** (lines 4-26): System dependencies (VNC, terminal, tools)
-2. **Claude Code** (lines 29-33): Node.js and @anthropic-ai/claude-code
+1. **Base layer** (lines 4-26): System dependencies (VNC, terminal, tools, homebrew, Node.js)
+2. **LLM Agent CLI tool** (lines 29-33): LLM CLI tool via homebrew or Node.js npm
 3. **Dependency cache** (lines 38-47): Cargo dependencies with dummy source
-4. **Application build** (lines 50-63): Actual vnccc binary compilation
+4. **Application build** (lines 50-63): Actual vncaa binary compilation
 
 Supports both debug and release builds via `RELEASE` build arg.
 
@@ -74,7 +87,15 @@ Creates a user matching host UID/GID to avoid permission issues:
 - Mounts host configs via symlinks (entrypoint.sh:44-65)
 - Copies git, SSH, Claude, and gh configs
 - Sets up Alacritty configuration (entrypoint.sh:67-70)
-- Runs vnccc as the created user (entrypoint.sh:88)
+- Runs vncaa as the created user (entrypoint.sh:88)
+
+The entrypoint script handles agent-specific configuration mounting:
+
+- **Claude**: Symlinks `.claude.json`, `.claude/`, and `.config/claude/`
+- **Kilocode**: Symlinks `.kilocode/`
+- **OpenCode**: Symlinks `.config/opencode/`, `.opencode/`, and custom config files
+- **Crush**: Symlinks `.config/crush/`
+- **NanoCoder**: Symlinks `.config/nanocoder/` and legacy preferences
 
 ## Running
 
@@ -94,11 +115,30 @@ The script:
 
 Automatically mounts if they exist:
 - `.gitconfig` (read-only)
-- `.claude.json` (read-only)
 - `.ssh/` (read-only)
+- `.config/gh/` (read-write)
+
+Agent-specific configurations:
+
+**Claude**:
+- `.claude.json` (read-only)
 - `.claude/` (read-write)
 - `.config/claude/` (read-write)
-- `.config/gh/` (read-write)
+
+**Kilocode**:
+- `.kilocode/` (read-write)
+
+**OpenCode**:
+- `.config/opencode/` (read-write)
+- `.opencode/` (read-write)
+- Custom config file via `OPENCODE_CONFIG` environment variable
+
+**Crush**:
+- `.config/crush` (read-write)
+
+**NanoCoder**:
+- `.config/nanocoder/` (read-only)
+- `.nanocoder-preferences.json` (read-only, legacy)
 
 ### Access
 

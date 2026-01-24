@@ -1,0 +1,19 @@
+[Unit]
+Description=vncaa - VNC LLM Agent CLI
+After=network.target
+
+[Service]
+Type=simple
+Environment=DD=d
+EnvironmentFile=-%h/.config/vncaa/env
+WorkingDirectory=%h/src/github/toozej/vncaa
+ExecStartPre=/bin/sh -c 'until docker info >/dev/null 2>&1; do echo "Waiting for Docker..." && sleep 1; done'
+ExecStart=%h/src/github/toozej/vncaa/run.sh
+ExecStop=/usr/bin/docker stop vncaa
+ExecReload=/usr/bin/docker restart vncaa
+TimeoutStartSec=300
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

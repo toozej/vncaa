@@ -52,6 +52,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        agent: [claude, gemini, kilocode, opencode, crush, nanocoder]
 
     steps:
       - name: Checkout repository
@@ -73,7 +76,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=main
+            type=raw,value=${{ matrix.agent }}-main
+            type=raw,value=${{ matrix.agent }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -84,5 +88,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             RELEASE=true
+            AGENT=${{ matrix.agent }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

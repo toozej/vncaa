@@ -1,1 +1,12 @@
 /target
+docker-compose.yml
+
+# LLM Agent config files
+.claude/
+.kilocode/
+opencode.json
+.opencode/
+.crush/
+.crush.json
+crush.json
+agents.config.json

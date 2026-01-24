@@ -1,6 +1,6 @@
-# Contributing to vnccc
+# Contributing to vncaa
 
-Thank you for your interest in contributing to vnccc! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to vncaa! This document provides guidelines for contributing to the project.
 
 ## Getting Started
 
@@ -17,8 +17,8 @@ Thank you for your interest in contributing to vnccc! This document provides gui
 
 1. Fork and clone the repository:
 ```bash
-git clone https://github.com/yourusername/vnccc.git
-cd vnccc
+git clone https://github.com/yourusername/vncaa.git
+cd vncaa
 ```
 
 2. Build the project:
@@ -38,7 +38,7 @@ cargo test
 claude setup-token
 export CLAUDE_CODE_OAUTH_TOKEN=sk-...
 
-# Run vnccc
+# Run vncaa
 cargo run -- /path/to/repo 1024x1024 8080
 ```
 
@@ -106,8 +106,8 @@ This project follows a Code of Conduct. By participating, you are expected to up
 
 ## Questions?
 
-Feel free to open an issue for questions about contributing or using vnccc.
+Feel free to open an issue for questions about contributing or using vncaa.
 
 ## License
 
-By contributing to vnccc, you agree that your contributions will be licensed under the MIT License.
+By contributing to vncaa, you agree that your contributions will be licensed under the MIT License.

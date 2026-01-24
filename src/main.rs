@@ -112,20 +112,20 @@ fn find_terminal() -> &'static str {
     "alacritty"
 }
 
-fn start_terminal_with_claude(
+fn start_terminal_with_agent(
     display: u32,
     repo_path: &str,
     terminal: &str,
     geometry: &str,
 ) -> Child {
     let display_env = format!(":{}", display);
-    let claude_cmd = format!("cd {} && claude --dangerously-skip-permissions", repo_path);
+    // Use agent-wrapper.sh to handle any configured agent CLI
+    let agent_cmd = format!("cd -- {} && /usr/local/bin/agent", repo_path);
 
     let mut cmd = Command::new(terminal);
     cmd.env("DISPLAY", &display_env);
 
     // Pass through important env vars
-    // TODO: CLAUDE_CODE_OAUTH_TOKEN
     if let Ok(claude_dir) = env::var("CLAUDE_CONFIG_DIR") {
         println!("Passing CLAUDE_CONFIG_DIR={} to terminal", claude_dir);
         cmd.env("CLAUDE_CONFIG_DIR", &claude_dir);
@@ -142,14 +142,14 @@ fn start_terminal_with_claude(
                 "--",
                 "bash",
                 "-c",
-                &claude_cmd,
+                &agent_cmd,
             ]);
         }
         "alacritty" => {
-            cmd.args(["-e", "bash", "-c", &claude_cmd]);
+            cmd.args(["-e", "bash", "-c", &agent_cmd]);
         }
         "kitty" => {
-            cmd.args(["--start-as", "fullscreen", "bash", "-c", &claude_cmd]);
+            cmd.args(["--start-as", "fullscreen", "bash", "-c", &agent_cmd]);
         }
         "xterm" => {
             cmd.args([
@@ -165,17 +165,17 @@ fn start_terminal_with_claude(
                 "-e",
                 "bash",
                 "-c",
-                &claude_cmd,
+                &agent_cmd,
             ]);
         }
         "urxvt" => {
-            cmd.args(["-geometry", geometry, "-e", "bash", "-c", &claude_cmd]);
+            cmd.args(["-geometry", geometry, "-e", "bash", "-c", &agent_cmd]);
         }
         "st" => {
-            cmd.args(["-e", "bash", "-c", &claude_cmd]);
+            cmd.args(["-e", "bash", "-c", &agent_cmd]);
         }
         _ => {
-            cmd.args(["-e", "bash", "-c", &claude_cmd]);
+            cmd.args(["-e", "bash", "-c", &agent_cmd]);
         }
     }
 
@@ -410,7 +410,7 @@ async fn main() {
     thread::sleep(Duration::from_millis(200));
 
     let terminal = find_terminal();
-    println!("Starting {} with claude in {}", terminal, repo_path);
+    println!("Starting {} with agent in {}", terminal, repo_path);
 
     // Spawn terminal monitor task that auto-restarts on exit
     let repo_path_clone = repo_path.clone();
@@ -418,7 +418,7 @@ async fn main() {
     tokio::spawn(async move {
         loop {
             let mut term_proc =
-                start_terminal_with_claude(display, &repo_path_clone, terminal, &geometry_clone);
+                start_terminal_with_agent(display, &repo_path_clone, terminal, &geometry_clone);
             println!("Terminal started (pid: {:?})", term_proc.id());
 
             // Wait for terminal to exit
