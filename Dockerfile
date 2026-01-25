@@ -1,5 +1,7 @@
 FROM rust:1-slim-trixie
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Install system dependencies (rarely changes - cached)
 RUN apt-get update && apt-get install -y \
     tigervnc-standalone-server \

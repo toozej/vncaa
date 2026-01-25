@@ -52,7 +52,7 @@ fi
 if [ "$BUILD_LOCAL" = true ]; then
     IMAGE="toozej/vncaa:${AGENT}-latest"
     echo "Building vncaa container locally (release=$RELEASE, agent=$AGENT, no-cache=$NOCACHE)..."
-    docker build --build-arg RELEASE=$RELEASE --build-arg AGENT=$AGENT $NOCACHE -t $IMAGE $REPO_PATH
+    docker build --build-arg RELEASE=$RELEASE --build-arg AGENT="$AGENT" $NOCACHE -t "$IMAGE" "$REPO_PATH"
 else
     echo "Pulling latest vncaa image from GHCR..."
     docker pull "$IMAGE"
