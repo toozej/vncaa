@@ -194,6 +194,10 @@ systemctl --user start vncaa.service
 
 The service will automatically start after networking is available and Docker is ready.
 
+## Favicon
+
+The [Vecna](https://strangerthings.fandom.com/wiki/Vecna)-esque PNG was generated using ChatGPT and converted to the various favicon formats using [favicon.io](https://favicon.io/). It was chosen as a joke since vncaa kind of sounds like Vecna.
+
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

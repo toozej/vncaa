@@ -19,6 +19,7 @@ use std::thread;
 use std::time::Duration;
 use tokio::signal;
 use tokio::sync::Mutex;
+use tower_http::services::ServeDir;
 
 struct AppState {
     display: u32,
@@ -449,10 +450,18 @@ async fn main() {
         .route("/", get(index_handler))
         .route("/prompt", get(prompt_ws_handler))
         .route("/api/font-size", post(font_size_handler))
+        .route(
+            "/favicon.ico",
+            get(|| async {
+                // Redirect /static/favicon.ico to /favicon.ico
+                axum::response::Redirect::permanent("/static/favicon.ico")
+            }),
+        )
+        .nest_service("/static", ServeDir::new("static"))
         .with_state(state);
 
     println!();
-    println!("=== vnccc running ===");
+    println!("=== vncaa running ===");
     println!("Web UI: http://localhost:{}", web_port);
     println!("VNC websocket: ws://localhost:{}", ws_port);
     println!();

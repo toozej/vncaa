@@ -74,6 +74,7 @@ RUN if [ "$RELEASE" = "true" ]; then \
 
 # Now copy actual source (this layer rebuilds on code changes)
 COPY src /app/src
+COPY static /app/static
 COPY alacritty.toml /app/
 COPY entrypoint.sh /app/
 COPY agent-wrapper.sh /usr/local/bin/agent
