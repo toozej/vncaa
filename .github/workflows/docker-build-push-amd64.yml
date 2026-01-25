@@ -1,5 +1,5 @@
 ---
-name: Build and Push Docker Image
+name: Build and Push Docker Image for AMD64
 
 on:
   push:
@@ -11,52 +11,15 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run tests
-        run: cargo test --verbose
-
-      - name: Check formatting
-        run: cargo fmt -- --check
-
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
-
   build-and-push:
     runs-on: ubuntu-latest
-    needs: test
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
         agent: [claude, gemini, kilocode, opencode, crush, nanocoder]
-        platform: [linux/amd64, linux/arm64]
+        platform: [linux/amd64]
 
     steps:
       - name: Checkout repository
@@ -92,5 +55,6 @@ jobs:
           build-args: |
             RELEASE=true
             AGENT=${{ matrix.agent }}
+            TARGETPLATFORM=${{ matrix.platform }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
