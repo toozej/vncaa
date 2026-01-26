@@ -66,15 +66,16 @@ repos:
     rev: v0.11.0
     hooks:
       - id: shellcheck
-        args: ["--exclude=SC2145"]
+        args: ["--exclude=SC2145", "--exclude=SC1091"]
 
   # lint Dockerfile
   - repo: https://github.com/hadolint/hadolint
     rev: v2.14.0
     hooks:
       - id: hadolint-docker
-        args: ["--ignore", "DL3007", "--ignore", "DL3008", "--ignore", "DL3013", "--ignore",
-          "DL3015", "--ignore", "DL3016", "--ignore", "DL3062", "--ignore", "SC2016"]
+        args: ["--ignore", "DL3006", "--ignore", "DL3007", "--ignore", "DL3008", "--ignore",
+          "DL3013", "--ignore", "DL3015", "--ignore", "DL3016", "--ignore", "DL3062", "--ignore",
+          "SC2016"]
 
   # lint Makefile
   - repo: https://github.com/checkmake/checkmake/
@@ -82,6 +83,12 @@ repos:
     hooks:
       - id: checkmake
         files: Makefile
+
+  # lint GitHub Actions workflows
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.10
+    hooks:
+      - id: actionlint
 
   # run semgrep on all known filetypes
   - repo: https://github.com/returntocorp/semgrep

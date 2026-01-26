@@ -1,0 +1,25 @@
+---
+services:
+  vncaa:
+    image: ghcr.io/toozej/vncaa:kilocode-go-main
+    restart: unless-stopped
+    container_name: vncaa
+    ports:
+      - "8080:8080"
+      - "6080:6080"
+    # Workspace provisioning: mount a local repo or let the container checkout one
+    volumes:
+      - ${WORKSPACE_PATH:-.}:/repo:rw
+      # Optional GitHub CLI auth mounts for private repos (prefer host-mounted gh config)
+      - ${GH_CONFIG_DIR:-$HOME/.config/gh}:/tmp/host-gh-config:rw
+      - ${SSH_DIR:-$HOME/.ssh}:/tmp/host-ssh:ro
+      - ${GIT_CONFIG_PATH:-$HOME/.gitconfig}:/tmp/host-gitconfig:ro
+    environment:
+      # Workspace mode: "mount" (default) or "checkout"
+      - WORKSPACE_MODE=${WORKSPACE_MODE:-mount}
+      # Checkout mode: repository to clone (e.g., "owner/repo")
+      - WORKSPACE_REPO=${WORKSPACE_REPO:-}
+      # Checkout mode: branch/tag/commit to checkout
+      - WORKSPACE_REF=${WORKSPACE_REF:-}
+      # Optional GitHub token for private repos (prefer host-mounted gh config)
+      - GH_TOKEN=${GH_TOKEN:-}

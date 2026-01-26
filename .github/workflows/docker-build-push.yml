@@ -1,5 +1,5 @@
 ---
-name: Build and Push Docker Image for AMD64
+name: Build and Push Docker Images
 
 on:
   push:
@@ -11,17 +11,19 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
+  build-and-push-amd64:
+    runs-on: ubuntu-24.04
+    permissions: &permissions
       contents: read
       packages: write
     strategy:
+      fail-fast: false
       matrix:
-        agent: [claude, gemini, kilocode, opencode, crush, nanocoder]
+        agent: [claude, gemini, kilocode, opencode, crush, codex]
+        language_toolchain: [rust, go, python, node]
         platform: [linux/amd64]
 
-    steps:
+    steps: &build-steps
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -41,8 +43,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ matrix.agent }}-main
-            type=raw,value=${{ matrix.agent }}
+            type=raw,value=${{ matrix.agent }}-${{ matrix.language_toolchain }}-main
+            type=raw,value=${{ matrix.agent }}-${{ matrix.language_toolchain }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -55,6 +57,19 @@ jobs:
           build-args: |
             RELEASE=true
             AGENT=${{ matrix.agent }}
+            LANG_TOOLCHAIN=${{ matrix.language_toolchain }}
             TARGETPLATFORM=${{ matrix.platform }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  build-and-push-arm64:
+    runs-on: ubuntu-24.04-arm
+    permissions: *permissions
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: [claude, gemini, kilocode, opencode, crush, codex]
+        language_toolchain: [rust, go, python, node]
+        platform: [linux/arm64]
+
+    steps: *build-steps

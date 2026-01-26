@@ -6,6 +6,7 @@ NOCACHE=""
 RELEASE=false
 REPO_PATH="."
 DD=${DD:-it}
+DEBUG=false
 IMAGE="ghcr.io/toozej/vncaa:main"
 
 # Parse args
@@ -14,6 +15,10 @@ while [ $# -gt 0 ]; do
         --build)
             BUILD_LOCAL=true
             shift
+            ;;
+        --lang-toolchain)
+            LANG_TOOLCHAIN="${2:-rust}"
+            shift 2
             ;;
         --no-cache)
             NOCACHE="--no-cache"
@@ -27,6 +32,14 @@ while [ $# -gt 0 ]; do
             AGENT="$2"
             shift 2
             ;;
+        --workspace)
+            REPO_PATH="$2"
+            shift 2
+            ;;
+        --debug)
+            DEBUG=true
+            shift
+            ;;
         *)
             REPO_PATH="$1"
             shift
@@ -36,9 +49,20 @@ done
 
 AGENT=${AGENT:-claude}
 
-# Set default remote image tag based on agent
+# validate lang toolchain
+case "$LANG_TOOLCHAIN" in
+    go|rust|python|node)
+        # Valid toolchain
+        ;;
+    *)
+        echo "Error: Invalid LANG_TOOLCHAIN '$LANG_TOOLCHAIN'. Must be one of: go, rust, python, node"
+        exit 1
+        ;;
+esac
+
+# Set default remote image tag based on agent and lang toolchain
 if [ "$BUILD_LOCAL" = false ]; then
-    IMAGE="ghcr.io/toozej/vncaa:${AGENT}-main"
+    IMAGE="ghcr.io/toozej/vncaa:${AGENT}-${LANG_TOOLCHAIN}-main"
 fi
 
 # Resolve to absolute path
@@ -50,9 +74,9 @@ else
 fi
 
 if [ "$BUILD_LOCAL" = true ]; then
-    IMAGE="toozej/vncaa:${AGENT}-latest"
-    echo "Building vncaa container locally (release=$RELEASE, agent=$AGENT, no-cache=$NOCACHE)..."
-    docker build --build-arg RELEASE=$RELEASE --build-arg AGENT="$AGENT" $NOCACHE -t "$IMAGE" "$REPO_PATH"
+    IMAGE="toozej/vncaa:${AGENT}-${LANG_TOOLCHAIN}-latest"
+    echo "Building vncaa container locally (release=$RELEASE, agent=$AGENT, lang_toolchain=$LANG_TOOLCHAIN, no-cache=$NOCACHE)..."
+    docker build --build-arg RELEASE=$RELEASE --build-arg AGENT="$AGENT" --build-arg LANG_TOOLCHAIN="$LANG_TOOLCHAIN" $NOCACHE -t "$IMAGE" "$REPO_PATH"
 else
     echo "Pulling latest vncaa image from GHCR..."
     docker pull "$IMAGE"
@@ -94,14 +118,8 @@ case "$AGENT" in
     crush)
         [ -d "$HOME/.config/crush" ] && MOUNT_OPTS+=(-v "$HOME/.config/crush:/tmp/host-crush-config:rw")
         ;;
-    nanocoder)
-        if [ -d "$HOME/Library/Preferences/nanocoder" ]; then
-            MOUNT_OPTS+=(-v "$HOME/Library/Preferences/nanocoder:/tmp/host-nanocoder-config:ro")
-        elif [ -d "$HOME/.config/nanocoder" ]; then
-            MOUNT_OPTS+=(-v "$HOME/.config/nanocoder:/tmp/host-nanocoder-config:ro")
-        fi
-        # NanoCoder legacy preferences
-        [ -f "$HOME/.nanocoder-preferences.json" ] && MOUNT_OPTS+=(-v "$HOME/.nanocoder-preferences.json:/tmp/host-nanocoder-legacy-prefs:ro")
+    codex)
+        [ -d "$HOME/.codex" ] && MOUNT_OPTS+=(-v "$HOME/.codex:/tmp/host-codex:rw")
         ;;
 esac
 
@@ -114,6 +132,7 @@ docker run "-${DD}" --rm \
     -e HOST_GID="$(id -g)" \
     -e HOST_USER="$(whoami)" \
     -e AGENT="$AGENT" \
+    -e DEBUG="$DEBUG" \
     "${ENV_OPTS[@]}" \
     "${MOUNT_OPTS[@]}" \
     --name vncaa \

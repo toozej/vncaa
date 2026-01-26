@@ -9,10 +9,6 @@ exec_agent() {
     if ! command -v "$cmd" >/dev/null 2>&1; then
         echo "Error: '$cmd' not found in PATH"
         echo "PATH: $PATH"
-        echo "Listing /home/linuxbrew/.linuxbrew/bin:"
-        ls -la /home/linuxbrew/.linuxbrew/bin/ 2>/dev/null || echo "Cannot list directory"
-        echo "Sleeping for 30s to allow inspection..."
-        sleep 30
         exit 1
     fi
     exec "$cmd" "$@" || {
@@ -34,13 +30,14 @@ case "$AGENT" in
         exec_agent kilocode --yolo "$@"
         ;;
     opencode)
-        exec_agent opencode --dangerously-skip-permissions "$@"
+        # TODO '--dangerously-skip-permissions' to be added in https://github.com/anomalyco/opencode/issues/8463
+        exec_agent opencode "$@"
         ;;
     crush)
         exec_agent crush --yolo "$@"
         ;;
-    nanocoder)
-        exec_agent nanocoder "$@"
+    codex)
+        exec_agent codex --yolo "$@"
         ;;
     *)
         echo "Unknown AGENT: $AGENT" >&2

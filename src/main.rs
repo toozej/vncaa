@@ -120,11 +120,44 @@ fn start_terminal_with_agent(
     geometry: &str,
 ) -> Child {
     let display_env = format!(":{}", display);
-    // Use agent-wrapper.sh to handle any configured agent CLI
-    let agent_cmd = format!("cd -- {} && /usr/local/bin/agent", repo_path);
+
+    // Check if DEBUG mode is enabled
+    let debug_mode = env::var("DEBUG").unwrap_or_default() == "true";
+
+    let (agent_cmd, _log_file_opt) = if debug_mode {
+        // Use debug launcher script for verbose logging
+        // Redirect stdout/stderr to a log file that we can monitor
+        let log_file = format!("/tmp/agent-debug-{}.log", std::process::id());
+        let debug_launcher = "/usr/local/bin/debug-agent-launcher.sh";
+        let cmd = format!("{} {} > {} 2>&1", debug_launcher, repo_path, log_file);
+        println!("=== DEBUG MODE ENABLED ===");
+        println!("Agent output will be logged to: {}", log_file);
+        println!("=== Terminal Launch Debug ===");
+        println!("Display: {}", display_env);
+        println!("Repo path: {}", repo_path);
+        println!("Terminal: {}", terminal);
+        (cmd, Some(log_file))
+    } else {
+        // Standard mode: use agent wrapper directly
+        let cmd = format!("cd -- {} && /usr/local/bin/agent", repo_path);
+        (cmd, None)
+    };
+
+    if debug_mode {
+        println!("Agent command: {}", agent_cmd);
+    }
 
     let mut cmd = Command::new(terminal);
     cmd.env("DISPLAY", &display_env);
+
+    // Capture stdout and stderr for debugging - NOTE: terminal emulators typically
+    // don't output to stdout/stderr, but we capture them anyway to catch any errors
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    if debug_mode {
+        println!("Command to execute: {:?}", cmd);
+    }
 
     // Pass through important env vars
     if let Ok(claude_dir) = env::var("CLAUDE_CONFIG_DIR") {
@@ -132,7 +165,16 @@ fn start_terminal_with_agent(
         cmd.env("CLAUDE_CONFIG_DIR", &claude_dir);
     }
     if let Ok(home) = env::var("HOME") {
+        if debug_mode {
+            println!("Passing HOME={} to terminal", home);
+        }
         cmd.env("HOME", &home);
+    }
+
+    // Log AGENT env var if present
+    if let Ok(agent) = env::var("AGENT") {
+        println!("Detected AGENT={}", agent);
+        cmd.env("AGENT", &agent);
     }
 
     match terminal {
@@ -416,20 +458,89 @@ async fn main() {
     // Spawn terminal monitor task that auto-restarts on exit
     let repo_path_clone = repo_path.clone();
     let geometry_clone = geometry.to_string();
+    let debug_mode = env::var("DEBUG").unwrap_or_default() == "true";
+
     tokio::spawn(async move {
         loop {
             let mut term_proc =
                 start_terminal_with_agent(display, &repo_path_clone, terminal, &geometry_clone);
-            println!("Terminal started (pid: {:?})", term_proc.id());
+            let pid = term_proc.id();
+            println!("Terminal started (pid: {:?})", pid);
+
+            let monitor_handle = if debug_mode {
+                // In debug mode, monitor the log file
+                let log_file = format!("/tmp/agent-debug-{}.log", std::process::id());
+                let log_file_clone = log_file.clone();
+
+                Some(tokio::spawn(async move {
+                    // Wait a moment for the log file to be created
+                    tokio::time::sleep(Duration::from_millis(200)).await;
+
+                    if let Ok(mut file) = tokio::fs::File::open(&log_file_clone).await {
+                        use tokio::io::AsyncReadExt;
+                        let mut buffer = vec![0u8; 4096];
+                        loop {
+                            match file.read(&mut buffer).await {
+                                Ok(0) => {
+                                    // EOF - wait a bit and try again (tail -f behavior)
+                                    tokio::time::sleep(Duration::from_millis(100)).await;
+                                }
+                                Ok(n) => {
+                                    let output = String::from_utf8_lossy(&buffer[..n]);
+                                    for line in output.lines() {
+                                        println!("[Agent log] {}", line);
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("[Agent log error] Failed to read: {}", e);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }))
+            } else {
+                None
+            };
 
             // Wait for terminal to exit
             match term_proc.wait() {
                 Ok(status) => {
-                    println!("Terminal exited with status: {} - restarting...", status);
+                    println!("=== Terminal exited (pid={}) ===", pid);
+                    println!("Exit status: {}", status);
+                    println!("Exit code: {:?}", status.code());
+
+                    if debug_mode {
+                        // Give the log monitor a moment to catch up
+                        tokio::time::sleep(Duration::from_millis(200)).await;
+
+                        // Print final log contents
+                        let log_file = format!("/tmp/agent-debug-{}.log", std::process::id());
+                        if let Ok(contents) = fs::read_to_string(&log_file) {
+                            println!("=== Final log contents ===");
+                            for line in contents.lines() {
+                                println!("[Agent log] {}", line);
+                            }
+                            println!("==========================");
+                        } else {
+                            println!("WARNING: Could not read log file: {}", log_file);
+                        }
+                    }
+
+                    println!("Restarting in 500ms...");
+                    println!("==============================");
                 }
                 Err(e) => {
-                    eprintln!("Error waiting for terminal: {} - restarting...", e);
+                    eprintln!(
+                        "Error waiting for terminal (pid={}): {} - restarting...",
+                        pid, e
+                    );
                 }
+            }
+
+            // Stop the log monitor if it was started
+            if let Some(handle) = monitor_handle {
+                handle.abort();
             }
 
             // Brief delay before restart

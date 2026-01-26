@@ -10,7 +10,7 @@ vncaa creates a complete development environment accessible through your web bro
 - **noVNC**: Browser-based VNC client for web access
 - **Alacritty Terminal**: Modern GPU-accelerated terminal emulator
 - **Ratpoison WM**: Lightweight tiling window manager
-- **LLM Agent CLI**: Multi-agent support for various LLM Agent CLI tools including Claude Code, Gemini, Kilocode, OpenCode, Crush, and NanoCoder
+- **LLM Agent CLI**: Multi-agent support for various LLM Agent CLI tools including Claude Code, Gemini, Kilocode, OpenCode, and Crush
 - **Rust Web Server** (Axum): Serves the UI and handles interactions
 
 ## Architecture
@@ -51,7 +51,7 @@ The `agent-wrapper.sh` script provides a unified interface for launching differe
 - **Kilocode**: `kilocode --yolo`
 - **OpenCode**: `opencode --dangerously-skip-permissions`
 - **Crush**: `crush --yolo`
-- **NanoCoder**: `nanocoder`
+- **Codex**: `codex`
 
 The wrapper automatically detects the selected agent via the `AGENT` environment variable and executes the appropriate command with the correct flags.
 
@@ -72,8 +72,8 @@ Dynamically updates the Alacritty TOML config file:
 
 The Dockerfile uses layer caching optimization:
 
-1. **Base layer** (lines 4-26): System dependencies (VNC, terminal, tools, homebrew, Node.js)
-2. **LLM Agent CLI tool** (lines 29-33): LLM CLI tool via homebrew or Node.js npm
+1. **Base layer** (lines 4-26): System dependencies (VNC, terminal, tools, Node.js)
+2. **LLM Agent CLI tool** (lines 29-33): LLM CLI tool via npm
 3. **Dependency cache** (lines 38-47): Cargo dependencies with dummy source
 4. **Application build** (lines 50-63): Actual vncaa binary compilation
 
@@ -95,7 +95,7 @@ The entrypoint script handles agent-specific configuration mounting:
 - **Kilocode**: Symlinks `.kilocode/`
 - **OpenCode**: Symlinks `.config/opencode/`, `.opencode/`, and custom config files
 - **Crush**: Symlinks `.config/crush/`
-- **NanoCoder**: Symlinks `.config/nanocoder/` and legacy preferences
+- **Codex**: Symlinks `.codex/`
 
 ## Running
 
@@ -136,9 +136,7 @@ Agent-specific configurations:
 **Crush**:
 - `.config/crush` (read-write)
 
-**NanoCoder**:
-- `.config/nanocoder/` (read-only)
-- `.nanocoder-preferences.json` (read-only, legacy)
+
 
 ### Access
 

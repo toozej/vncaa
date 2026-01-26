@@ -21,6 +21,17 @@ useradd -m -u "$HOST_UID" -g "$HOST_GID" -s /bin/bash "$HOST_USER" 2>/dev/null |
 
 USER_HOME="/home/$HOST_USER"
 
+# Provision workspace (mount or checkout) before copying configs
+# This ensures WORKSPACE_PATH is available for agent execution
+if [ -f /app/scripts/provision-workspace.sh ]; then
+  echo "Provisioning workspace..."
+  source /app/scripts/provision-workspace.sh
+  WORKSPACE_PATH=${WORKSPACE_PATH:-/repo}
+  echo "Workspace path: $WORKSPACE_PATH"
+else
+  WORKSPACE_PATH=/repo
+fi
+
 # Copy config files to user's home
 # setup gitconfig
 if [ -f /tmp/host-gitconfig ]; then
@@ -121,20 +132,12 @@ case "$AGENT" in
             echo "Symlinked $USER_HOME/.config/crush -> /tmp/host-crush-config"
         fi
         ;;
-    nanocoder)
-        # ~/.config/nanocoder for config
-        if [ -d /tmp/host-nanocoder-config ]; then
-            mkdir -p "$USER_HOME/.config"
-            chown "$HOST_UID:$HOST_GID" "$USER_HOME/.config"
-            ln -sf /tmp/host-nanocoder-config "$USER_HOME/.config/nanocoder"
-            chown -h "$HOST_UID:$HOST_GID" "$USER_HOME/.config/nanocoder"
-            echo "Symlinked $USER_HOME/.config/nanocoder -> /tmp/host-nanocoder-config"
-        fi
-        # ~/.nanocoder-preferences.json for legacy preferences
-        if [ -f /tmp/host-nanocoder-legacy-prefs ]; then
-            ln -sf /tmp/host-nanocoder-legacy-prefs "$USER_HOME/.nanocoder-preferences.json"
-            chown -h "$HOST_UID:$HOST_GID" "$USER_HOME/.nanocoder-preferences.json"
-            echo "Symlinked $USER_HOME/.nanocoder-preferences.json -> /tmp/host-nanocoder-legacy-prefs"
+    codex)
+        # ~/.codex for user config
+        if [ -d /tmp/host-codex ]; then
+            ln -sf /tmp/host-codex "$USER_HOME/.codex"
+            chown -h "$HOST_UID:$HOST_GID" "$USER_HOME/.codex"
+            echo "Symlinked $USER_HOME/.codex -> /tmp/host-codex"
         fi
         ;;
 esac
@@ -147,9 +150,10 @@ chown -R "$HOST_UID:$HOST_GID" "$USER_HOME/.config/alacritty"
 # Bash configuration
 cat >> "$USER_HOME/.bashrc" << BASHRC
 # Bash configuration
-export PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/usr/local/bin:/usr/bin:/bin:\$PATH"
+export PATH="/usr/local/bin:/usr/bin:/bin:\$PATH"
 BASHRC
 chown "$HOST_UID:$HOST_GID" "$USER_HOME/.bashrc"
 
 # Use 'su' without '-' to preserve more environment, but still set critical vars
-exec su "$HOST_USER" -c "export HOME=$USER_HOME && export PATH=/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/usr/local/bin:/usr/bin:/bin:\$PATH && /app/target/vnccc $*"
+# Pass WORKSPACE_PATH to vnccc so it can use the correct workspace
+exec su "$HOST_USER" -c "export HOME=$USER_HOME && export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH && export WORKSPACE_PATH=$WORKSPACE_PATH && /usr/local/bin/vnccc $*"

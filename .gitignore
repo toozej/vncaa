@@ -1,5 +1,4 @@
 /target
-docker-compose.yml
 
 # LLM Agent config files
 .claude/
