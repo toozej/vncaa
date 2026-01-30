@@ -6,8 +6,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "09:00"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "gha"
@@ -18,8 +18,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "09:00"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "rust"
@@ -27,8 +27,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "09:00"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "docker"
