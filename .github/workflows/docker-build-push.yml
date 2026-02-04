@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+  schedule:
+    - cron: "0 18 * * 0"
 
 env:
   REGISTRY: ghcr.io
@@ -19,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        agent: [claude, gemini, kilocode, opencode, crush, codex]
+        agent: [claude, gemini, kilocode, opencode, crush, codex, qwen-code]
         language_toolchain: [rust, go, python, node]
         platform: [linux/amd64]
 
@@ -68,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        agent: [claude, gemini, kilocode, opencode, crush, codex]
+        agent: [claude, gemini, kilocode, opencode, crush, codex, qwen-code]
         language_toolchain: [rust, go, python, node]
         platform: [linux/arm64]
 

@@ -39,6 +39,9 @@ case "$AGENT" in
     codex)
         exec_agent codex --yolo "$@"
         ;;
+    qwen-code)
+        exec_agent qwen --yolo "$@"
+        ;;
     *)
         echo "Unknown AGENT: $AGENT" >&2
         exit 1

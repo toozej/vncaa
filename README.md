@@ -1,6 +1,6 @@
 # vncaa: vnc LLM agent CLI
 
-Run various LLM agent CLIs (Claude Code, KiloCode, OpenCode, Crush) in a VNC Linux environment for ease of use over tailscale/etc.
+Run various LLM agent CLIs (Claude Code, Gemini, KiloCode, OpenCode, Crush, Qwen Code) in a VNC Linux environment for ease of use over tailscale/etc.
 
 Credit where credit is due, most of the hard work for this application was done by "pgray" in [vnccc](https://github.com/pgray/vnccc). This fork adds the ability to run other LLM agent CLI tools as well as Claude Code using the same framework.
 
@@ -48,6 +48,7 @@ Open http://localhost:8080 in your browser.
   - OpenCode: `npm install -g opencode-ai`
   - Crush: `npm install -g @charmland/crush`
   - Codex: `npm install -g @openai/codex`
+  - Qwen Code: `npm install -g @qwen-code/qwen-code`
 
 ## Configuration
 
@@ -68,6 +69,7 @@ The container automatically mounts your host configurations:
   - Custom config file if `OPENCODE_CONFIG` env var points to an existing file
 - **Crush**: `.config/crush/` (directory)
 - **Codex**: `.codex/` (directory for user config)
+- **Qwen Code**: `.qwen/` (directory for config)
 
 To enable GitHub operations inside the container:
 

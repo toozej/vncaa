@@ -241,6 +241,8 @@ RUN if [ "$AGENT" = "claude" ]; then \
         npm install -g @charmland/crush; \
     elif [ "$AGENT" = "codex" ]; then \
         npm install -g @openai/codex; \
+    elif [ "$AGENT" = "qwen-code" ]; then \
+        npm install -g @qwen-code/qwen-code@latest; \
     else \
         echo "Unknown AGENT: $AGENT"; \
         exit 1; \

@@ -10,7 +10,7 @@ vncaa creates a complete development environment accessible through your web bro
 - **noVNC**: Browser-based VNC client for web access
 - **Alacritty Terminal**: Modern GPU-accelerated terminal emulator
 - **Ratpoison WM**: Lightweight tiling window manager
-- **LLM Agent CLI**: Multi-agent support for various LLM Agent CLI tools including Claude Code, Gemini, Kilocode, OpenCode, and Crush
+- **LLM Agent CLI**: Multi-agent support for various LLM Agent CLI tools including Claude Code, Gemini, Kilocode, OpenCode, Crush, and Qwen Code
 - **Rust Web Server** (Axum): Serves the UI and handles interactions
 
 ## Architecture
@@ -51,7 +51,8 @@ The `agent-wrapper.sh` script provides a unified interface for launching differe
 - **Kilocode**: `kilocode --yolo`
 - **OpenCode**: `opencode --dangerously-skip-permissions`
 - **Crush**: `crush --yolo`
-- **Codex**: `codex`
+- **Codex**: `codex --yolo`
+- **Qwen Code**: `qwen`
 
 The wrapper automatically detects the selected agent via the `AGENT` environment variable and executes the appropriate command with the correct flags.
 
@@ -96,6 +97,7 @@ The entrypoint script handles agent-specific configuration mounting:
 - **OpenCode**: Symlinks `.config/opencode/`, `.opencode/`, and custom config files
 - **Crush**: Symlinks `.config/crush/`
 - **Codex**: Symlinks `.codex/`
+- **Qwen Code**: Symlinks `.qwen/`
 
 ## Running
 
@@ -136,6 +138,9 @@ Agent-specific configurations:
 **Crush**:
 - `.config/crush` (read-write)
 
+**Qwen Code**:
+- `.qwen/` (read-write)
+
 
 
 ### Access
@@ -162,10 +167,11 @@ If the terminal process exits (e.g., user quits Claude), it automatically restar
 
 ## CI/CD (.github/workflows/docker-build-push.yml)
 
-GitHub Actions workflow on main branch:
+GitHub Actions workflow on main branch and Sunday evenings (18:00 UTC):
 
 1. **Test job**: Runs `cargo test`, `cargo fmt`, and `cargo clippy`
 2. **Build job**: Builds release Docker image and pushes to GitHub Container Registry
+3. **Weekly builds**: Fetches latest release version and tags images accordingly
 
 Uses layer caching with GitHub Actions cache for faster builds.
 

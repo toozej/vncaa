@@ -140,6 +140,14 @@ case "$AGENT" in
             echo "Symlinked $USER_HOME/.codex -> /tmp/host-codex"
         fi
         ;;
+    qwen-code)
+        # ~/.qwen for config
+        if [ -d /tmp/host-qwen-code ]; then
+            ln -sf /tmp/host-qwen-code "$USER_HOME/.qwen"
+            chown -h "$HOST_UID:$HOST_GID" "$USER_HOME/.qwen"
+            echo "Symlinked $USER_HOME/.qwen -> /tmp/host-qwen-code"
+        fi
+        ;;
 esac
 
 # Copy alacritty config
