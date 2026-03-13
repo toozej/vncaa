@@ -1,0 +1,33 @@
+#!/bin/bash
+set -e
+
+LLM_AGENT="${1:-}"
+
+PROJECT_DIR="$HOME/docker/vncaa-${LLM_AGENT}"
+
+usage() {
+    echo "Usage: $0 LLM_AGENT"
+    echo ""
+    echo "Arguments:"
+    echo "  LLM_AGENT - LLM agent name (claude, gemini, kilocode, opencode, crush, codex, qwen)"
+    echo ""
+    echo "Note: Uses omnibus image with all language toolchains (rust, go, python, node)"
+    exit 1
+}
+
+if [[ -z "$LLM_AGENT" ]]; then
+    echo "ERROR: LLM_AGENT is required"
+    usage
+fi
+
+if [[ ! -d "$PROJECT_DIR" ]]; then
+    echo "ERROR: Project directory does not exist: $PROJECT_DIR"
+    exit 1
+fi
+
+echo "LOG: Stopping vncaa project: $PROJECT_DIR"
+
+cd "$PROJECT_DIR"
+docker compose down --remove-orphans
+
+echo "LOG: vncaa project stopped successfully"

@@ -7,6 +7,7 @@ RELEASE=false
 REPO_PATH="."
 DD=${DD:-it}
 DEBUG=false
+OMNIBUS=false
 IMAGE="ghcr.io/toozej/vncaa:main"
 
 # Parse args
@@ -40,6 +41,10 @@ while [ $# -gt 0 ]; do
             DEBUG=true
             shift
             ;;
+        --omnibus)
+            OMNIBUS=true
+            shift
+            ;;
         *)
             REPO_PATH="$1"
             shift
@@ -49,20 +54,26 @@ done
 
 AGENT=${AGENT:-claude}
 
-# validate lang toolchain
-case "$LANG_TOOLCHAIN" in
-    go|rust|python|node)
-        # Valid toolchain
-        ;;
-    *)
-        echo "Error: Invalid LANG_TOOLCHAIN '$LANG_TOOLCHAIN'. Must be one of: go, rust, python, node"
-        exit 1
-        ;;
-esac
+# Validate lang toolchain (only if not using omnibus)
+if [ "$OMNIBUS" = false ]; then
+    case "$LANG_TOOLCHAIN" in
+        go|rust|python|node)
+            # Valid toolchain
+            ;;
+        *)
+            echo "Error: Invalid LANG_TOOLCHAIN '$LANG_TOOLCHAIN'. Must be one of: go, rust, python, node"
+            exit 1
+            ;;
+    esac
+fi
 
-# Set default remote image tag based on agent and lang toolchain
+# Set image tag based on omnibus flag, agent and lang toolchain
 if [ "$BUILD_LOCAL" = false ]; then
-    IMAGE="ghcr.io/toozej/vncaa:${AGENT}-${LANG_TOOLCHAIN}-main"
+    if [ "$OMNIBUS" = true ]; then
+        IMAGE="ghcr.io/toozej/vncaa:${AGENT}-omnibus-main"
+    else
+        IMAGE="ghcr.io/toozej/vncaa:${AGENT}-${LANG_TOOLCHAIN}-main"
+    fi
 fi
 
 # Resolve to absolute path
@@ -74,15 +85,24 @@ else
 fi
 
 if [ "$BUILD_LOCAL" = true ]; then
-    IMAGE="toozej/vncaa:${AGENT}-${LANG_TOOLCHAIN}-latest"
-    echo "Building vncaa container locally (release=$RELEASE, agent=$AGENT, lang_toolchain=$LANG_TOOLCHAIN, no-cache=$NOCACHE)..."
-    docker build --build-arg RELEASE=$RELEASE --build-arg AGENT="$AGENT" --build-arg LANG_TOOLCHAIN="$LANG_TOOLCHAIN" $NOCACHE -t "$IMAGE" "$REPO_PATH"
+    if [ "$OMNIBUS" = true ]; then
+        IMAGE="toozej/vncaa:${AGENT}-omnibus-latest"
+        echo "Building vncaa omnibus container locally (release=$RELEASE, agent=$AGENT, no-cache=$NOCACHE)..."
+        docker build --build-arg RELEASE=$RELEASE --build-arg AGENT="$AGENT" -f Dockerfile.omnibus $NOCACHE -t "$IMAGE" "$REPO_PATH"
+    else
+        IMAGE="toozej/vncaa:${AGENT}-${LANG_TOOLCHAIN}-latest"
+        echo "Building vncaa container locally (release=$RELEASE, agent=$AGENT, lang_toolchain=$LANG_TOOLCHAIN, no-cache=$NOCACHE)..."
+        docker build --build-arg RELEASE=$RELEASE --build-arg AGENT="$AGENT" --build-arg LANG_TOOLCHAIN="$LANG_TOOLCHAIN" $NOCACHE -t "$IMAGE" "$REPO_PATH"
+    fi
 else
     echo "Pulling latest vncaa image from GHCR..."
     docker pull "$IMAGE"
 fi
 
 echo "Starting vncaa with repo: $REPO_PATH (agent: $AGENT)"
+if [ "$OMNIBUS" = true ]; then
+    echo "Using omnibus image (all language toolchains: rust, go, python, node)"
+fi
 echo "Open http://localhost:8080 in your browser"
 
 # Remove any existing container with same name

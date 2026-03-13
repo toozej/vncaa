@@ -1,7 +1,7 @@
 ---
 services:
   vncaa:
-    image: ghcr.io/toozej/vncaa:kilocode-go-main
+    image: ghcr.io/toozej/vncaa:kilocode-omnibus-main
     restart: unless-stopped
     container_name: vncaa
     ports:

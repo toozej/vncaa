@@ -1,0 +1,138 @@
+#!/bin/b
+# vncaa_command_wrapper
+# Validates and executes only allowed vncaa scripts
+# Place at /usr/local/bin/vncaa_command_wrapper
+
+set -euo pipefail
+
+ALLOWED_SCRIPTS=(
+    "/usr/local/bin/start_vncaa"
+    "/usr/local/bin/stop_vncaa"
+)
+
+LOG_FILE="/var/log/vncaa_commands.log"
+LOG_MAX_SIZE=10485760  # 10MB
+
+log_command() {
+    local status="$1"
+    local command="$2"
+    local args="$3"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local user="${USER:-${PAM_USER:-unknown}}"
+    local client_ip="${SSH_CLIENT%% *}"
+
+    # Rotate log if too large
+    if [[ -f "$LOG_FILE" ]] && [[ $(stat -f%z "$LOG_FILE" 2>/dev/null || stat -c%s "$LOG_FILE" 2>/dev/null) -gt $LOG_MAX_SIZE ]]; then
+        mv "$LOG_FILE" "${LOG_FILE}.old"
+    fi
+
+    echo "[$timestamp] user=$user ip=$client_ip status=$status command=\"$command\" args=\"$args\"" >> "$LOG_FILE"
+}
+
+validate_command() {
+    local original_command="${SSH_ORIGINAL_COMMAND:-}"
+    local script_name
+    local script_path
+
+    # If no command provided,ow allowed commands
+    if [[ -z "$original_command" ]]; then
+        echo "Allowed commands:"
+        for script in "${ALLOWED_SCRIPTS[@]}"; do
+            echo "  $script"
+        done
+        log_command "NO_COMMAND" "" ""
+        exit 0
+    fi
+
+    # Extract the script name/path (first word before any arguments)
+    script_name=$(echo "$original_command" | awk '{print $1}')
+
+    # Resolve to absolute path if it's just a script name
+    if [[ "$script_name" != /* ]]; then
+        # Check if it's in PATH
+        script_path=$(command -v "$script_name" 2>/dev/null || echo "")
+        if [[ -z "$script_path" ]]; then
+            # Try prepending standard path
+            script_path="/usr/local/bin/$script_name"
+        fi
+        script_name="$script_path"
+    fi
+
+    # Validate against allowed scripts
+    local allowed=false
+    for allowed_script in "${ALLOWED_SCRIPTS[@]}"; do
+        if [[ "$script_name" == "$allowed_script" ]]; then
+            allowed=true
+            break
+        fi
+    done
+
+    if [[ "$allowed" != true ]]; then
+        echo "Error: Command not allowed: $script_name" >&2
+        echo "Allowed scripts:" >&2
+        for script in "${ALLOWED_SCRIPTS[@]}"; do
+            echo "  $script" >&2
+        done
+        log_command "DENIED" "$script_name" "$original_command"
+        exit 1
+    fi
+
+    # Check script exists and is executable
+    if [[ ! -x "$script_name" ]]; then
+        echo "Error: Script not found or not executable: $script_name" >&2
+        log_command "NOT_FOUND" "$script_name" "$original_command"
+        exit 1
+    fi
+
+    log_command "EXECUTING" "$script_name" "$original_command"
+}
+
+sanitize_args() {
+    local original_command="${SSH_ORIGINAL_COMMAND:-}"
+    local args
+
+    # Remove the script name, keep arguments
+    args=$(echo "$original_command" | sed 's/^[^ ]* //')
+
+    # If no args, return empty
+    if [[ "$args" == "$original_command" ]]; then
+        echo ""
+        return
+    fi
+
+    # Validate arguments don't containell metacharacters that could be exploited
+    if [[ "$args" =~ [\;\|\&\$\`\(\)\{\}\[\]\<\>] ]]; then
+        echo "Error: Arguments contain forbidden characters" >&2
+        log_command "INJECTION_BLOCKED" "" "$original_command"
+        exit 1
+    fi
+
+    echo "$args"
+}
+
+main() {
+    validate_command
+
+    local script_name
+    script_name=$(echo "${SSH_ORIGINAL_COMMAND:-}" | awk '{print $1}')
+
+    # Resolve to absolute path
+    if [[ "$script_name" != /* ]]; then
+        local resolved
+        resolved=$(command -v "$script_name" 2>/dev/null || echo "/usr/local/bin/$script_name")
+        script_name="$resolved"
+    fi
+
+    local args
+    args=$(sanitize_args)
+
+    # Execute with arguments if any
+    if [[ -n "$args" ]]; then
+        exec "$script_name" $args
+    else
+        exec "$script_name"
+    fi
+}
+
+main "$@"

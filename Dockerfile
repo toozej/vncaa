@@ -255,5 +255,8 @@ EXPOSE 8080 6080
 ENV LIBGL_ALWAYS_SOFTWARE=1
 
 # Default: run vnccc pointing to a mounted repo
+# Note: entrypoint.sh runs as root to create vncuser, then uses su to run vnccc as that user
+# The runtime user switching is handled by the entrypoint, not the Dockerfile USER directive.
+# This is needed because useradd requires root privileges.
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/repo", "1920x1920", "8080"]

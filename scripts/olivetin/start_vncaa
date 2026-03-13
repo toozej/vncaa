@@ -1,0 +1,71 @@
+#!/bin/bash
+set -e
+
+LLM_AGENT="${1:-}"
+WORKING_DIRECTORY="${2:-}"
+REPO="${3:-}"
+BRANCH="${4:-}"
+
+PROJECT_DIR="$HOME/docker/vncaa-${LLM_AGENT}"
+
+usage() {
+    echo "Usage: $0 LLM_AGENT [WORKING_DIRECTORY] [REPO] [BRANCH]"
+    echo ""
+    echo "Arguments:"
+    echo "  LLM_AGENT          - LLM agent name (claude, gemini, kilocode, opencode, crush, codex, qwen)"
+    echo "  WORKING_DIRECTORY  - Optional working directory path"
+    echo "  REPO               - Optional repository URL"
+    echo "  BRANCH             - Optional branch name"
+    echo ""
+    echo "Environment Variables:"
+    echo "  If WORKING_DIRECTORY provided:"
+    echo "    WORKSPACE_PATH = WORKING_DIRECTORY, WORKSPACE_MODE = mount"
+    echo "  If REPO and BRANCH provided:"
+    echo "    WORKSPACE_REPO = REPO, WORKSPACE_REF = BRANCH, WORKSPACE_MODE = checkout"
+    echo "  If both provided, REPO/BRANCH takes precedence for WORKSPACE_MODE"
+    echo ""
+    echo "Note: Uses omnibus image with all language toolchains (rust, go, python, node)"
+    exit 1
+}
+
+if [[ -z "$LLM_AGENT" ]]; then
+    echo "ERROR: LLM_AGENT is required"
+    usage
+fi
+
+if [[ ! -d "$PROJECT_DIR" ]]; then
+    echo "ERROR: Project directory does not exist: $PROJECT_DIR"
+    exit 1
+fi
+
+WORKSPACE_PATH=""
+WORKSPACE_REPO=""
+WORKSPACE_REF=""
+WORKSPACE_MODE=""
+
+if [[ -n "$WORKING_DIRECTORY" ]]; then
+    WORKSPACE_PATH="$WORKING_DIRECTORY"
+    WORKSPACE_MODE="mount"
+    echo "LOG: Setting WORKSPACE_PATH=$WORKSPACE_PATH, WORKSPACE_MODE=$WORKSPACE_MODE"
+fi
+
+if [[ -n "$REPO" && -n "$BRANCH" ]]; then
+    WORKSPACE_REPO="$REPO"
+    WORKSPACE_REF="$BRANCH"
+    WORKSPACE_MODE="checkout"
+    echo "LOG: Setting WORKSPACE_REPO=$WORKSPACE_REPO, WORKSPACE_REF=$WORKSPACE_REF, WORKSPACE_MODE=$WORKSPACE_MODE"
+fi
+
+export WORKSPACE_PATH
+export WORKSPACE_REPO
+export WORKSPACE_REF
+export WORKSPACE_MODE
+
+echo "LOG: Starting vncaa project: $PROJECT_DIR"
+echo "LOG: WORKSPACE_MODE=$WORKSPACE_MODE"
+echo "LOG: Using omnibus image (all language toolchains)"
+
+cd "$PROJECT_DIR"
+docker compose up -d
+
+echo "LOG: vncaa project started successfully"

@@ -1,0 +1,7 @@
+---
+rules:
+  - id: dockerfile.security.missing-user.missing-user
+    paths:
+      exclude:
+        - Dockerfile
+        - Dockerfile.omnibus

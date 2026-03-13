@@ -1,0 +1,81 @@
+---
+actions:
+  - title: Start vncaa
+    icon: play
+    description: Start a vncaa Docker Compose project on the oracle server
+    timeout: 60
+    arguments:
+      - name: llm_agent
+        title: LLM Agent
+        description: Select the LLM agent to use
+        choices:
+          - value: claude
+            title: Claude
+          - value: gemini
+            title: Gemini
+          - value: kilocode
+            title: Kilocode
+          - value: opencode
+            title: OpenCode
+          - value: crush
+            title: Crush
+          - value: codex
+            title: Codex
+          - value: qwen
+            title: Qwen
+        default: kilocode
+      - name: working_directory
+        title: Working Directory
+        description: The working directory on the oracle server
+        type: ascii_sentence
+        suggestions:
+          /home/user/projects:
+          /workspace:
+          /home/ubuntu/projects:
+          /opt/projects:
+      - name: repo
+        title: Repository
+        description: The Git repository URL
+        type: ascii_sentence
+        suggestions:
+          https://github.com/user/repo.git:
+          git@github.com:user/repo.git:
+          https://gitlab.com/user/repo.git:
+      - name: branch
+        title: Branch
+        description: The Git branch to use
+        type: ascii_sentence
+        suggestions:
+          main:
+          master:
+          WIP:
+        default: main
+    shell: ssh -F /config/ssh/config -i /config/ssh/vncaa_oracle oracle '/usr/local/bin/start_vncaa.sh
+      "{{ llm_agent }}" "{{ working_directory }}" "{{ repo }}" "{{ branch }}"'
+
+  - title: Stop vncaa
+    icon: stop
+    description: Stop a vncaa Docker Compose project on the oracle server
+    timeout: 60
+    arguments:
+      - name: llm_agent
+        title: LLM Agent
+        description: Select the LLM agent to use
+        choices:
+          - value: claude
+            title: Claude
+          - value: gemini
+            title: Gemini
+          - value: kilocode
+            title: Kilocode
+          - value: opencode
+            title: OpenCode
+          - value: crush
+            title: Crush
+          - value: codex
+            title: Codex
+          - value: qwen
+            title: Qwen
+        default: kilocode
+    shell: ssh -F /config/ssh/config -i /config/ssh/vncaa_oracle oracle '/usr/local/bin/stop_vncaa.sh
+      "{{ llm_agent }}"'

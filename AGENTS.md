@@ -80,6 +80,24 @@ The Dockerfile uses layer caching optimization:
 
 Supports both debug and release builds via `RELEASE` build arg.
 
+### Omnibus Images (Dockerfile.omnibus)
+
+The omnibus Dockerfile combines all language toolchains (rust, go, python, node) into a single image per agent. This simplifies management for remote servers by eliminating the need to maintain separate toolchain images.
+
+**Image naming**:
+- `vncaa:$agent-omnibus-main` - Latest stable release
+- `vncaa:$agent-omnibus` - Rolling tag
+
+**Use cases**:
+- Remote servers where a single image is preferred
+- Multi-language project development
+- Simplified deployment and updates
+
+**Build**:
+```bash
+docker build --build-arg AGENT=kilocode -f Dockerfile.omnibus -t vncaa:kilocode-omnibus .
+```
+
 ### Entrypoint (entrypoint.sh)
 
 Creates a user matching host UID/GID to avoid permission issues:

@@ -79,6 +79,7 @@
             flex: 1;
             padding: 12px 16px;
             min-height: 44px; /* Minimum touch target */
+            max-height: 120px; /* Limit height for multiline */
             font-size: 16px; /* Prevent iOS zoom on focus */
             border: 2px solid #444;
             border-radius: 8px;
@@ -90,6 +91,10 @@
             appearance: none;
             pointer-events: auto;
             touch-action: manipulation;
+            resize: none; /* Disable manual resize */
+            overflow: hidden; /* Hide scrollbar when single line */
+            font-family: inherit;
+            line-height: 1.4;
         }
 
         #prompt-input:focus {
@@ -127,6 +132,37 @@
         #send-btn:disabled {
             background: #444;
             cursor: not-allowed;
+        }
+
+        #copy-btn {
+            padding: 12px 16px;
+            min-height: 44px;
+            min-width: 44px;
+            font-size: 16px;
+            background: #444;
+            color: #fff;
+            border: 2px solid #444;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            -webkit-tap-highlight-color: rgba(68, 68, 68, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #copy-btn:hover {
+            background: #555;
+            border-color: #666;
+        }
+
+        #copy-btn:active {
+            background: #333;
+        }
+
+        #copy-btn.copied {
+            background: #22c55e;
+            border-color: #22c55e;
         }
 
         .status {
@@ -298,13 +334,14 @@
         </div>
         <div class="prompt-container">
             <form class="prompt-form" id="prompt-form">
-                <input
-                    type="text"
+                <textarea
                     id="prompt-input"
-                    placeholder="Type your prompt here..."
+                    placeholder="Type your prompt here... (Shift+Enter for newline)"
                     autocomplete="off"
                     autocapitalize="sentences"
-                >
+                    rows="1"
+                ></textarea>
+                <button type="button" id="copy-btn" title="Copy terminal output">📋</button>
                 <button type="submit" id="send-btn">Send</button>
             </form>
             <div class="font-control">
@@ -328,6 +365,7 @@
         const promptInput = document.getElementById('prompt-input');
         const promptForm = document.getElementById('prompt-form');
         const sendBtn = document.getElementById('send-btn');
+        const copyBtn = document.getElementById('copy-btn');
         const statusEl = document.getElementById('status');
         const fontSlider = document.getElementById('font-slider');
         const fontSizeDisplay = document.getElementById('font-size-display');
@@ -399,7 +437,60 @@
             ws.onerror = (err) => {
                 console.error('WebSocket error:', err);
             };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'clipboard') {
+                        // Handle clipboard response
+                        handleClipboardResponse(data.content);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse WebSocket message:', e);
+                }
+            };
         }
+
+        function handleClipboardResponse(text) {
+            if (text && text.length > 0) {
+                // Copy to browser clipboard
+                navigator.clipboard.writeText(text).then(() => {
+                    // Show visual feedback
+                    copyBtn.classList.add('copied');
+                    copyBtn.textContent = '✓';
+                    statusEl.textContent = 'Copied to clipboard!';
+                    statusEl.className = 'status connected';
+                    
+                    // Reset after 2 seconds
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        copyBtn.textContent = '📋';
+                        statusEl.textContent = 'Connected';
+                        statusEl.className = 'status connected';
+                    }, 2000);
+                }).catch((err) => {
+                    console.error('Failed to copy to clipboard:', err);
+                    statusEl.textContent = 'Failed to copy';
+                    statusEl.className = 'status disconnected';
+                });
+            } else {
+                statusEl.textContent = 'No text to copy';
+                statusEl.className = 'status disconnected';
+            }
+        }
+
+        // Handle copy button click
+        copyBtn.addEventListener('click', () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                statusEl.textContent = 'Not connected';
+                statusEl.className = 'status disconnected';
+                return;
+            }
+
+            // Request clipboard contents from backend
+            ws.send('GET_CLIPBOARD');
+            statusEl.textContent = 'Copying...';
+        });
 
         async function updateFontSize(size) {
             try {
@@ -477,6 +568,10 @@
             ws.send(text);
             promptInput.value = '';
 
+            // Reset textarea height
+            promptInput.style.height = 'auto';
+            promptInput.style.overflow = 'hidden';
+
             // Blur the input first to ensure it's in a clean state
             promptInput.blur();
 
@@ -485,6 +580,41 @@
                 vncIframe.focus();
             }, 0);
         });
+
+        // Auto-resize textarea based on content
+        function autoResizeTextarea() {
+            promptInput.style.height = 'auto';
+            const newHeight = promptInput.scrollHeight;
+            promptInput.style.height = `${newHeight}px`;
+            
+            // Show/hide scrollbar based on content height
+            if (newHeight > 80) {
+                promptInput.style.overflow = 'auto';
+            } else {
+                promptInput.style.overflow = 'hidden';
+            }
+        }
+
+        // Handle Shift+Enter for newline insertion
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                
+                // Insert newline at cursor position
+                const start = promptInput.selectionStart;
+                const end = promptInput.selectionEnd;
+                const value = promptInput.value;
+                
+                promptInput.value = value.substring(0, start) + '\n' + value.substring(end);
+                promptInput.selectionStart = promptInput.selectionEnd = start + 1;
+                
+                // Auto-resize after inserting newline
+                autoResizeTextarea();
+            }
+        });
+
+        // Auto-resize on input
+        promptInput.addEventListener('input', autoResizeTextarea);
 
         // Ensure prompt input remains functional after viewport changes
         promptInput.addEventListener('blur', () => {
@@ -501,7 +631,7 @@
         // Set VNC iframe URL based on current host
         const vncIframe = document.getElementById('vnc-iframe');
         const vncHost = window.location.hostname || 'localhost';
-        vncIframe.src = `http://${vncHost}:6080/vnc.html?autoconnect=true&resize=scale&show_dot=true&view_clip=false`;
+        vncIframe.src = `http://${vncHost}:6080/vnc.html?autoconnect=true&resize=scale&show_dot=true&view_clip=true&clipboard=true`;
 
         // Start connection
         connect();

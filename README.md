@@ -32,6 +32,12 @@ AGENT=kilocode LANG_TOOLCHAIN=python ./run.sh
 # Or build with a specific agent and language toolchain
 ./run.sh --build --agent opencode --lang-toolchain go
 
+# Or use an omnibus image (all language toolchains included)
+./run.sh --agent kilocode --omnibus
+
+# Or build an omnibus image locally
+./run.sh --build --agent kilocode --omnibus
+
 # Override workspace path (default: current directory or git root)
 ./run.sh --workspace /path/to/your/repo
 ```
@@ -93,7 +99,41 @@ docker build --build-arg AGENT=claude --build-arg LANG_TOOLCHAIN=rust -t vncaa .
 # Or specify a different agent and toolchain
 docker build --build-arg AGENT=kilocode --build-arg LANG_TOOLCHAIN=python -t vncaa-kilocode .
 # Supported toolchains: rust (default), go, python, node
+
+# Or build an omnibus image (all language toolchains combined)
+docker build --build-arg AGENT=kilocode -f Dockerfile.omnibus -t vncaa-kilocode-omnibus .
+
 cargo build --release
+```
+
+## Omnibus Images
+
+The omnibus images combine all language toolchains (rust, go, python, node) into a single image per agent, simplifying management for remote servers:
+
+- **Image tags**: `vncaa:$agent-omnibus` and `vncaa:$agent-omnibus-main`
+- **Example**: `ghcr.io/toozej/vncaa:kilocode-omnibus` contains all language toolchains
+
+### When to Use Omnibus
+
+- **Remote servers**: Single image to manage instead of 4 separate toolchain images
+- **Multi-language projects**: Work on Rust, Go, Python, and Node.js projects without switching images
+- **Simplicity**: No need to select a toolchain at build time
+
+### Using Omnibus
+
+```bash
+# Pull and run omnibus image
+./run.sh --agent kilocode --omnibus
+
+# Build omnibus image locally
+./run.sh --build --agent kilocode --omnibus
+
+# Direct docker usage
+docker run -it --rm \
+  -p 8080:8080 \
+  -p 6080:6080 \
+  -v /path/to/repo:/repo:rw \
+  ghcr.io/toozej/vncaa:kilocode-omnibus-main
 ```
 
 ## Features
@@ -101,6 +141,7 @@ cargo build --release
 - Support for several popular LLM Agent CLI tools
 - Easily expandable to other LLM Agent CLI tools installable via homebrew or npm
 - Support for variety of common language toolchains in runtime image (rust, python, go, node)
+- **Omnibus images**: All toolchains combined in single image per agent for simplified remote server management
 - Mobile-friendly with swype keyboard support
 - Square display aspect ratio for Android
 - Per-repository configuration

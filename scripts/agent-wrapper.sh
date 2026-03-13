@@ -27,7 +27,7 @@ case "$AGENT" in
         exec_agent gemini --yolo "$@"
         ;;
     kilocode)
-        exec_agent kilocode --yolo "$@"
+        exec_agent kilocode "$@"
         ;;
     opencode)
         # TODO '--dangerously-skip-permissions' to be added in https://github.com/anomalyco/opencode/issues/8463

@@ -279,6 +279,61 @@ async fn send_text_to_display(display: u32, text: &str) {
     println!("xdotool key result: {:?}", key_result);
 }
 
+async fn get_clipboard_contents(display: u32) -> String {
+    let display_env = format!(":{}", display);
+
+    // First, try to get clipboard contents directly using xdotool
+    // This works better in VNC sessions than xclip
+    let xdotool_output = Command::new("xdotool")
+        .env("DISPLAY", &display_env)
+        .args(["getclipboard"])
+        .output();
+
+    match xdotool_output {
+        Ok(output) if output.status.success() => {
+            let text = String::from_utf8_lossy(&output.stdout).to_string();
+            if !text.is_empty() {
+                println!("Clipboard contents length: {} chars", text.len());
+                return text;
+            }
+        }
+        Ok(output) => {
+            println!(
+                "xdotool getclipboard returned non-zero: {:?}",
+                output.status
+            );
+        }
+        Err(e) => {
+            println!("xdotool getclipboard error: {}", e);
+        }
+    }
+
+    // Fallback: try xclip if xdotool didn't work
+    let xclip_output = Command::new("xclip")
+        .env("DISPLAY", &display_env)
+        .args(["-selection", "clipboard", "-o"])
+        .output();
+
+    match xclip_output {
+        Ok(output) if output.status.success() => {
+            let text = String::from_utf8_lossy(&output.stdout).to_string();
+            println!(
+                "xclip fallback - clipboard contents length: {} chars",
+                text.len()
+            );
+            text
+        }
+        Ok(output) => {
+            println!("xclip returned non-zero status: {:?}", output.status);
+            String::new()
+        }
+        Err(e) => {
+            println!("xclip fallback error: {}", e);
+            String::new()
+        }
+    }
+}
+
 async fn index_handler() -> Html<&'static str> {
     Html(include_str!("index.html"))
 }
@@ -296,8 +351,21 @@ async fn handle_prompt_socket(mut socket: WebSocket, state: Arc<AppState>) {
     while let Some(msg) = socket.next().await {
         println!("WebSocket received: {:?}", msg);
         if let Ok(Message::Text(text)) = msg {
-            // Use xdotool to type into the X display
-            send_text_to_display(display, &text).await;
+            // Check if this is a special command
+            if text == "GET_CLIPBOARD" {
+                // Get clipboard contents from the X display
+                let clipboard_text = get_clipboard_contents(display).await;
+                let response = serde_json::json!({
+                    "type": "clipboard",
+                    "content": clipboard_text
+                });
+                let _ = socket
+                    .send(Message::Text(response.to_string().into()))
+                    .await;
+            } else {
+                // Use xdotool to type into the X display
+                send_text_to_display(display, &text).await;
+            }
         }
     }
     println!("Prompt WebSocket disconnected");

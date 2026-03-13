@@ -1,0 +1,172 @@
+# Omnibus Dockerfile - combines all language toolchains into one image per agent
+# This creates a single image with rust, go, python, and node all installed.
+# Supports AGENT=claude|gemini|kilocode|opencode|crush|codex|qwen-code
+
+ARG AGENT=claude
+
+# Builder stage: compile Rust app
+FROM rust:1-slim AS builder
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+WORKDIR /app
+
+# Copy only Cargo files first to cache dependency downloads
+COPY Cargo.toml Cargo.lock* /app/
+
+# Create dummy src to build deps (cached until Cargo.toml changes)
+RUN mkdir -p src && echo "fn main() {}" > src/main.rs
+
+ARG RELEASE=false
+RUN if [ "$RELEASE" = "true" ]; then \
+        cargo build --release; \
+    else \
+        cargo build; \
+    fi && rm -rf src
+
+# Now copy actual source (this layer rebuilds on code changes)
+COPY src /app/src
+COPY static /app/static
+
+# Build actual binary (only recompiles vnccc, deps cached)
+RUN if [ "$RELEASE" = "true" ]; then \
+        touch src/main.rs && \
+        cargo build --release && \
+        cp target/release/vnccc target/vnccc; \
+    else \
+        touch src/main.rs && \
+        cargo build && \
+        cp target/debug/vnccc target/vnccc; \
+    fi
+
+# Omnibus runtime stage: install ALL language toolchains
+FROM debian:stable-slim AS runtime
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ARG AGENT
+
+# Install base system dependencies and ALL language toolchains
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Base system tools
+    git \
+    curl \
+    ca-certificates \
+    gpg \
+    make \
+    cmake \
+    pkg-config \
+    libssl3 \
+    libssl-dev \
+    # Rust toolchain
+    clang \
+    lld \
+    libclang-dev \
+    # Go toolchain
+    golang-go \
+    # Python toolchain
+    python3 \
+    python3-pip \
+    python3-venv \
+    # Dev utilities
+    bat \
+    fd-find \
+    ripgrep \
+    # VNC/UI dependencies
+    tigervnc-standalone-server \
+    tigervnc-tools \
+    novnc \
+    websockify \
+    xdotool \
+    ratpoison \
+    alacritty \
+    fontconfig \
+    libfontconfig1 \
+    libegl1 \
+    libgl1 \
+    libgl1-mesa-dri \
+    libxcursor1 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxfixes3 \
+    libxinerama1 \
+    openssh-client \
+    build-essential \
+    procps \
+    file \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust (rustup)
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH="/usr/local/cargo/bin:${PATH}"
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile default
+
+# Go is already installed via golang-go package
+ENV GOPATH=/go
+ENV PATH="/usr/local/go/bin:/go/bin:${PATH}"
+
+# Install Python uv (astral)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Install Node.js 22.x and Bun
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://bun.sh/install | bash \
+    && ln -s /root/.bun/bin/bun /usr/local/bin/bun
+
+# Install GitHub CLI
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gh \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/usr/local/bin:${PATH}"
+
+WORKDIR /app
+
+# Copy built binary from builder
+COPY --chmod=755 --from=builder /app/target/vnccc /usr/local/bin/vnccc
+
+# Copy assets and scripts
+COPY static /app/static
+COPY --chmod=755 scripts/provision-workspace.sh /app/
+COPY --chmod=755 scripts/entrypoint.sh /app/
+COPY --chmod=755 scripts/agent-wrapper.sh /usr/local/bin/agent
+COPY --chmod=755 scripts/debug-agent-launcher.sh /usr/local/bin/debug-agent-launcher.sh
+COPY alacritty.toml /app/
+
+# Install agent CLI based on AGENT arg
+RUN if [ "$AGENT" = "claude" ]; then \
+        npm install -g @anthropic-ai/claude-code; \
+    elif [ "$AGENT" = "gemini" ]; then \
+        npm install -g @google/gemini-cli; \
+    elif [ "$AGENT" = "kilocode" ]; then \
+        npm install -g @kilocode/cli; \
+    elif [ "$AGENT" = "opencode" ]; then \
+        npm install -g opencode-ai; \
+    elif [ "$AGENT" = "crush" ]; then \
+        npm install -g @charmland/crush; \
+    elif [ "$AGENT" = "codex" ]; then \
+        npm install -g @openai/codex; \
+    elif [ "$AGENT" = "qwen-code" ]; then \
+        npm install -g @qwen-code/qwen-code@latest; \
+    else \
+        echo "Unknown AGENT: $AGENT"; \
+        exit 1; \
+    fi
+
+# Expose ports: 8080 (web UI), 6080 (noVNC websocket)
+EXPOSE 8080 6080
+
+# Force software rendering for headless VNC
+ENV LIBGL_ALWAYS_SOFTWARE=1
+
+# Default: run vncaa pointing to a mounted repo
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["/repo", "1920x1920", "8080"]

@@ -1,0 +1,64 @@
+# SSH authorized_keys entry for vncaa script execution
+#
+# Add this entry to ~/.ssh/authorized_keys on the oracle server
+# Replace <PUBLIC_KEY> with the actual SSH public key
+#
+# Security restrictions applied:
+# - command= forces execution through wrapper script
+# - no-port-forwarding prevents port forwarding
+# - no-X11-forwarding prevents X11 forwarding
+# - no-agent-forwarding prevents SSH agent forwarding
+# - no-pty prevents pseudo-terminal allocation
+#
+# Setup instructions:
+# 1. Copy vncaa_command_wrapper to /usr/local/bin/vncaa_command_wrapper
+# 2. Make it executable: chmod +x /usr/local/bin/vncaa_command_wrapper
+# 3. Create log directory: touch /var/log/vncaa_commands.log && chmod 666 /var/log/vncaa_commands.log
+# 4. Copy start_vncaa and stop_vncaa to /usr/local/bin/
+# 5. Add this entry to authorized_keys (replace <PUBLIC_KEY> with actual key)
+
+command="/usr/local/bin/vncaa_command_wrapper",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 <PUBLIC_KEY> vncaa-automation
+
+# ============================================================================
+# Alternative: If you want to restrict without a wrapper (less logging/security)
+# ============================================================================
+#
+# This alternative uses a simple case statement inline.
+# Less secure - use wrapper approach above for production.
+#
+# command="case \"$SSH_ORIGINAL_COMMAND\" in /usr/local/bin/start_vncaa*|/usr/local/bin/stop_vncaa*) exec $SSH_ORIGINAL_COMMAND ;; *) echo 'Command not allowed' >&2; exit 1 ;; esac",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 <PUBLIC_KEY> vncaa-automation
+
+# ============================================================================
+# Usage Examples
+# ============================================================================
+#
+# From a remote machine with the corresponding private key:
+#
+#   # Start vncaa
+#   ssh oracle-server /usr/local/bin/start_vncaa
+#
+#   # Stop vncaa
+#   ssh oracle-server /usr/local/bin/stop_vncaa
+#
+#   # With arguments (if scripts support them)
+#   ssh oracle-server "/usr/local/bin/start_vncaa --port 8080"
+#
+#   # Any other command will be denied
+#   ssh oracle-server ls                    # Denied
+#   ssh oracle-server /bin/bash             # Denied
+#   ssh oracle-server cat /etc/passwd       # Denied
+#
+# ============================================================================
+# Log Rotation (optional)
+# ============================================================================
+#
+# Add to /etc/logrotate.d/vncaa_commands:
+#
+# /var/log/vncaa_commands.log {
+#     weekly
+#     rotate 4
+#     compress
+#     missingok
+#     notifempty
+#     create 0666 root root
+# }
