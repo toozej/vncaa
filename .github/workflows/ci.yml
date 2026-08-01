@@ -66,11 +66,11 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      - uses: github/codeql-action/init@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/init@v4.36.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
           languages: rust
-      - uses: github/codeql-action/autobuild@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
-      - uses: github/codeql-action/analyze@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/autobuild@v4.36.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/analyze@v4.36.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
 
   trivy-scan-source:
     name: trivy-scan-source
