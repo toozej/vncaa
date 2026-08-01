@@ -58,7 +58,7 @@ jobs:
             type=raw,value=${{ matrix.agent }}-${{ matrix.language_toolchain }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.1.0
         with:
           context: .
           push: true
@@ -117,7 +117,7 @@ jobs:
             type=raw,value=${{ matrix.agent }}-omnibus
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.1.0
         with:
           context: .
           file: ./Dockerfile.omnibus
